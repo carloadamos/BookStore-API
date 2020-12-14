@@ -12,6 +12,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.OpenApi.Models;
+using System.Reflection;
+using System.IO;
+using BookStore_API.Contracts;
+using BookStore_API.Services;
 
 namespace BookStore_API
 {
@@ -32,7 +37,33 @@ namespace BookStore_API
 					Configuration.GetConnectionString("DefaultConnection")));
 			services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = true)
 				.AddEntityFrameworkStores<ApplicationDbContext>();
-			services.AddRazorPages();
+
+			services.AddCors(o =>
+			{
+				o.AddPolicy("CorsPolicy", builder =>
+					builder.AllowAnyOrigin()
+					.AllowAnyMethod()
+					.AllowAnyHeader());
+			});
+
+			services.AddSwaggerGen(c =>
+			{
+				c.SwaggerDoc("v1", new OpenApiInfo
+				{
+					Title = "Book Store API",
+					Version = "v1",
+					Description = "Educational API for a Book Store"
+				});
+
+				var xfile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+				var xpath = Path.Combine(AppContext.BaseDirectory, xfile);
+
+				c.IncludeXmlComments(xpath);
+			});
+
+			services.AddSingleton<ILoggerService, LoggerService>();
+
+			services.AddControllers();
 		}
 
 		// This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -50,8 +81,16 @@ namespace BookStore_API
 				app.UseHsts();
 			}
 
+			app.UseSwagger();
+			app.UseSwaggerUI(c =>
+			{
+				c.SwaggerEndpoint("/swagger/v1/swagger.json", "Book Store API");
+				c.RoutePrefix = "";
+			});
+
 			app.UseHttpsRedirection();
-			app.UseStaticFiles();
+
+			app.UseCors("CorsPolicy");
 
 			app.UseRouting();
 
@@ -60,7 +99,7 @@ namespace BookStore_API
 
 			app.UseEndpoints(endpoints =>
 			{
-				endpoints.MapRazorPages();
+				endpoints.MapControllers();
 			});
 		}
 	}
